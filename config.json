@@ -1,0 +1,23 @@
+{
+    "sites": [
+      {
+        "name": "demo-1",
+        "baseUrl": "https://example.com/",
+        "pages": {
+          "home": "/",
+          "category": "/category",
+          "product": "/product/example"
+        },
+        "languages": ["default", "en"],
+        "devices": ["desktop", "mobile"]
+      }
+    ],
+    "defaults": {
+      "languages": ["default", "en"],
+      "devices": ["desktop", "mobile"],
+      "viewport": {
+        "desktop": { "width": 1920, "height": 1080 },
+        "mobile": { "width": 375, "height": 667 }
+      }
+    }
+  }
