@@ -26,16 +26,17 @@ export class ScreenshotManager {
     try {
       for (const urlInfo of urls) {
         if (lastDevice && lastDevice !== urlInfo.device) {
-          console.log(`🔄 Перемикаємося з ${lastDevice} на ${urlInfo.device} - перезапускаємо браузер`);
-          await this.browserManager.close();
+          console.log(`🔄 Перемикаємося з ${lastDevice} на ${urlInfo.device} - повна очистка та перезапуск браузера`);
+          await this.browserManager.fullCleanup();
           await this.browserManager.launch();
+          console.log(`✅ Браузер перезапущено з новим User Agent для ${urlInfo.device}`);
         }
 
         lastDevice = urlInfo.device;
         await this.processUrl(urlInfo, finalOptions);
       }
     } finally {
-      await this.browserManager.close();
+      await this.browserManager.fullCleanup();
     }
 
     return this.results;
@@ -44,7 +45,8 @@ export class ScreenshotManager {
   async processUrl(urlInfo, options) {
     const { url, language, device, pageType, siteName, viewport } = urlInfo;
 
-    console.log(`🔗 Обробляємо URL: ${url} (${siteName}/${language}/${device}/${pageType})`);
+    const urlWithQuery = this.browserManager.addVersionQuery(url, device);
+    console.log(`🔗 Обробляємо URL: ${urlWithQuery} (${siteName}/${language}/${device}/${pageType})`);
 
     let attempts = 0;
     let success = false;
@@ -56,7 +58,7 @@ export class ScreenshotManager {
       try {
         await this.browserManager.createPage(device);
         await this.browserManager.setViewport(viewport);
-        await this.browserManager.navigateToUrl(url);
+        await this.browserManager.navigateToUrl(url, device);
 
         const fileName = this.generateFilePath(siteName, language, device, pageType);
         await this.ensureDirectoryExists(path.dirname(fileName));
