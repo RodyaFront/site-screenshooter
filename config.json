@@ -2,11 +2,11 @@
     "sites": [
       {
         "name": "demo-1",
-        "baseUrl": "https://design337.horoshop.ua/",
+        "baseUrl": "https://example.com/",
         "pages": {
           "home": "/",
-          "category": "/zhinkam",
-          "product": "/kardyhan-trykotazhnyi"
+          "category": "auto",
+          "product": "auto"
         },
         "languages": ["default", "en"],
         "devices": ["desktop", "mobile"]
