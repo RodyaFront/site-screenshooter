@@ -16,19 +16,18 @@ export class UrlGenerator {
             device,
             pageType,
             siteName: siteConfig.name,
-            viewport: siteConfig.viewport[device]
+            viewport: siteConfig.viewport[device],
+            baseUrl: siteConfig.baseUrl.replace(/\/$/, '')
           });
         }
       }
     }
 
-    // Сортируем URL: сначала desktop, потом mobile
     return this.sortUrlsByDevice(urls);
   }
 
   sortUrlsByDevice(urls) {
     return urls.sort((a, b) => {
-      // Desktop идет первым (0), mobile вторым (1)
       const deviceOrder = { 'desktop': 0, 'mobile': 1 };
       return deviceOrder[a.device] - deviceOrder[b.device];
     });
@@ -38,9 +37,9 @@ export class UrlGenerator {
     const baseUrl = siteConfig.baseUrl.replace(/\/$/, '');
     let path = siteConfig.pages[pageType];
 
-    if (language === 'en') {
-      path = this.addLanguagePrefix(path);
-    }
+    if (path === 'auto') return 'auto';
+
+    if (language === 'en') path = this.addLanguagePrefix(path);
 
     const fullUrl = `${baseUrl}${path}`;
 
