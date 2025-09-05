@@ -22,7 +22,16 @@ export class UrlGenerator {
       }
     }
 
-    return urls;
+    // Сортируем URL: сначала desktop, потом mobile
+    return this.sortUrlsByDevice(urls);
+  }
+
+  sortUrlsByDevice(urls) {
+    return urls.sort((a, b) => {
+      // Desktop идет первым (0), mobile вторым (1)
+      const deviceOrder = { 'desktop': 0, 'mobile': 1 };
+      return deviceOrder[a.device] - deviceOrder[b.device];
+    });
   }
 
   generateUrl(siteConfig, language, device, pageType) {
