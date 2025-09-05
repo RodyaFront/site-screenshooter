@@ -161,7 +161,7 @@ export class BrowserManager {
 
       await this.clearLocalStorage();
 
-      await this.page.waitForTimeout(5000);
+      await this.page.waitForTimeout(2000);
 
       return true;
     } catch (error) {

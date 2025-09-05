@@ -101,12 +101,6 @@ export class AutoParser {
     }
   }
 
-  /**
-   * Находит первый товар на странице категории
-   * @param {Object} page - Puppeteer page объект
-   * @param {string} baseUrl - Базовый URL сайта
-   * @returns {Promise<string|null>} URL товара или null
-   */
   async findFirstProductFromCategory(page, baseUrl) {
     console.log(`🔍 Пошук товару на сторінці категорії...`);
 
