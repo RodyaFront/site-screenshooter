@@ -1,11 +1,13 @@
 import fs from 'fs';
 import { DesktopScreenshotStrategy } from './screenshot-strategies/desktop-screenshot-strategy.js';
 import { MobileScreenshotStrategy } from './screenshot-strategies/mobile-screenshot-strategy.js';
+import { DomFilter } from './dom-filter.js';
 
 export class ScreenshotManager {
   constructor() {
     this.languages = ['default', 'en'];
     this.devices = ['desktop', 'mobile'];
+    this.domFilter = new DomFilter();
   }
 
   createScreenshotStrategy(device, language) {
@@ -44,6 +46,8 @@ export class ScreenshotManager {
 
       const finalUrl = strategy.addLanguagePrefix(originalUrl);
       await page.goto(finalUrl, { waitUntil: 'networkidle2', timeout: 0 });
+
+      await this.domFilter.cleanPage(page);
 
       const fileName = strategy.generateFileName(originalUrl);
       const siteFolder = this.getSiteFolderName(originalUrl);

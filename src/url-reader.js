@@ -1,4 +1,6 @@
 import fs from 'fs';
+import { Logger } from './logger.js';
+
 
 export class UrlReader {
   constructor(filename = 'urls.txt') {
@@ -30,7 +32,7 @@ export class UrlReader {
         }
         domainGroups[domain].push(url);
       } catch (error) {
-        console.warn(`⚠️ Невірний URL: ${url}`);
+        Logger.warning(`⚠️ Невірний URL: ${url}`);
       }
     }
 
@@ -43,7 +45,6 @@ export class UrlReader {
     for (const [domain, urls] of Object.entries(domainGroups)) {
       const rootUrls = urls.filter(url => url.endsWith('/'));
 
-      // Если у домена только одна корневая страница - делаем авто-определение
       if (rootUrls.length === 1) {
         domainsForAuto.push({
           domain,
