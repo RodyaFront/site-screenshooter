@@ -1,14 +1,13 @@
 {
-  "name": "website-screenshooter",
-  "version": "1.0.0",
-  "description": "Automated screenshot tool for websites",
+  "name": "website-screenshooter-v2",
+  "version": "2.0.0",
+  "description": "Simple and reliable screenshot tool based on team lead's approach",
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "start": "node index.js",
-    "test": "node index.js --config config.json --site demo-1"
+    "start": "node index.js"
   },
-  "keywords": ["screenshot", "puppeteer", "automation", "website"],
+  "keywords": ["screenshot", "puppeteer", "automation", "website", "v2"],
   "author": "Rodion Hordiienko",
   "license": "MIT",
   "dependencies": {

@@ -58,6 +58,36 @@ export class AutoParser {
     ];
   }
 
+  async findCategoryAndProduct(page, baseUrl) {
+    try {
+      console.log('🔍 Шукаємо категорію та продукт...');
+
+      const categoryUrl = await this.findCategoryFromMenu(page, baseUrl, 'desktop');
+      if (!categoryUrl) {
+        console.log('❌ Категорію не знайдено');
+        return null;
+      }
+
+      console.log(`✅ Знайдено категорію: ${categoryUrl}`);
+
+      await page.goto(categoryUrl, { waitUntil: 'networkidle2', timeout: 0 });
+
+      const productUrl = await this.findFirstProductFromCategory(page, baseUrl);
+      if (!productUrl) {
+        console.log('❌ Продукт не знайдено');
+        return { categoryUrl };
+      }
+
+      console.log(`✅ Знайдено продукт: ${productUrl}`);
+
+      return { categoryUrl, productUrl };
+
+    } catch (error) {
+      console.error('❌ Помилка авто-визначення:', error.message);
+      return null;
+    }
+  }
+
   async findCategoryFromMenu(page, baseUrl, device) {
     console.log(`🔍 Пошук категорії в меню для ${device}...`);
 
@@ -180,37 +210,5 @@ export class AutoParser {
     } catch (error) {
       console.log(`⚠️ Товари не завантажились за ${timeout}мс, продовжуємо...`);
     }
-  }
-
-  addVersionQuery(url, device) {
-    const versionParam = device === 'mobile' ? 'v=mobile' : 'v=pc';
-    const separator = url.includes('?') ? '&' : '?';
-    return `${url}${separator}${versionParam}`;
-  }
-
-  addLanguagePrefix(url, language) {
-    if (language === 'default') {
-      return url;
-    }
-
-    if (language === 'en') {
-      const urlObj = new URL(url);
-      const path = urlObj.pathname;
-
-      if (path.startsWith('/en/')) {
-        return url;
-      }
-
-      urlObj.pathname = '/en' + path;
-      return urlObj.toString();
-    }
-
-    return url;
-  }
-
-  processUrl(url, language, device) {
-    let processedUrl = this.addLanguagePrefix(url, language);
-    processedUrl = this.addVersionQuery(processedUrl, device);
-    return processedUrl;
   }
 }

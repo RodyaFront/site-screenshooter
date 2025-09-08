@@ -1,170 +1,203 @@
-#!/usr/bin/env node
+import puppeteer from 'puppeteer';
+import fs from 'fs';
+import { AutoParser } from './src/auto-parser.js';
 
-import { ConfigLoader } from './src/config.js';
-import { UrlGenerator } from './src/url-generator.js';
-import { ScreenshotManager } from './src/screenshot.js';
-import { CLI } from './src/cli.js';
-import { Logger } from './src/logger.js';
-import ora from 'ora';
-
-class ScreenshooterApp {
-  constructor() {
-    this.cli = new CLI();
-    this.logger = null;
-    this.configLoader = null;
-    this.urlGenerator = new UrlGenerator();
-    this.screenshotManager = null;
+function readUrlsFromFile(filename = 'urls.txt') {
+  try {
+    const content = fs.readFileSync(filename, 'utf8');
+    return content
+      .split('\n')
+      .map(line => line.trim())
+      .filter(line => line && !line.startsWith('#'));
+  } catch (error) {
+    console.error(`❌ Помилка читання файла ${filename}:`, error.message);
+    process.exit(1);
   }
+}
 
-  async run() {
-    try {
-      const options = await this.cli.handleCommand();
+function generateFileName(url, device, language, index) {
+  try {
+    const urlObj = new URL(url);
+    let pathname = urlObj.pathname;
 
-      this.logger = new Logger({
-        verbose: options.verbose
-      });
+    pathname = pathname.replace(/^\/+|\/+$/g, '');
 
-      this.logger.createLogFile(options.output);
-
-      this.logger.info('🚀 Запуск Website Screenshooter');
-
-      await this.loadConfig(options.config);
-      const urls = await this.generateUrls(options);
-      this.screenshotManager = new ScreenshotManager(options.output);
-      await this.takeScreenshots(urls, options);
-      await this.showResults();
-
-      this.logger.success('🎉 Скрипт завершено успішно!');
-
-    } catch (error) {
-      if (this.logger) {
-        this.logger.error('Критична помилка:', error.message);
-      } else {
-        console.error('❌ Критична помилка:', error.message);
-      }
-      process.exit(1);
-    }
-  }
-
-  async loadConfig(configPath) {
-    this.logger.info(`📋 Завантаження конфігурації: ${configPath}`);
-
-    this.configLoader = new ConfigLoader(configPath);
-    this.config = this.configLoader.load();
-
-    const sitesCount = this.config.sites.length;
-    this.logger.success(`Конфігурацію завантажено: ${sitesCount} сайт(ів)`);
-  }
-
-  async generateUrls(options) {
-    this.logger.info('🔗 Генерація URL-ів...');
-
-    let allUrls = [];
-
-    const sitesToProcess = options.site
-      ? [options.site]
-      : this.configLoader.getSites();
-
-    for (const siteName of sitesToProcess) {
-      const siteConfig = this.configLoader.getSiteConfig(siteName);
-      const filteredConfig = this.applyFilters(siteConfig, options);
-      const siteUrls = this.urlGenerator.generateSiteUrls(filteredConfig);
-      allUrls = allUrls.concat(siteUrls);
+    if (!pathname) {
+      return `${device}_${language}_home.png`;
     }
 
-    allUrls = this.urlGenerator.filterUrls(allUrls, {
-      sites: options.site ? [options.site] : undefined,
-      languages: options.languages,
-      devices: options.devices,
-      pages: options.pages
-    });
+    const cleanName = pathname
+      .replace(/\//g, '_')
+      .replace(/[^a-zA-Z0-9_-]/g, '_')
+      .replace(/_+/g, '_')
+      .replace(/^_|_$/g, '');
 
-    const totalUrls = allUrls.length;
-    this.logger.success(`Згенеровано ${totalUrls} URL-ів для обробки`);
+    return `${device}_${language}_${cleanName}.png`;
+  } catch (error) {
+    return `${device}_${language}_page_${index + 1}.png`;
+  }
+}
 
-    return allUrls;
+function addLanguagePrefix(url, language) {
+  if (language === 'default') {
+    return url;
   }
 
-  applyFilters(siteConfig, options) {
-    return {
-      ...siteConfig,
-      languages: options.languages,
-      devices: options.devices,
-      pages: this.buildPagesConfig(siteConfig, options.pages)
-    };
-  }
+  if (language === 'en') {
+    const urlObj = new URL(url);
+    const path = urlObj.pathname;
 
-  buildPagesConfig(siteConfig, requestedPages) {
-    const pages = {};
-
-    requestedPages.forEach(pageType => {
-      if (siteConfig.pages && siteConfig.pages[pageType]) {
-        pages[pageType] = siteConfig.pages[pageType];
-      } else {
-        const defaultPaths = {
-          home: '/',
-          category: '/catalog',
-          product: '/product/example'
-        };
-        pages[pageType] = defaultPaths[pageType];
-      }
-    });
-
-    return pages;
-  }
-
-  async takeScreenshots(urls, options) {
-    this.logger.info('📸 Починаємо створення скріншотів...');
-
-    const spinner = ora('Створення скріншотів...').start();
-
-    try {
-      const results = await this.screenshotManager.takeScreenshots(urls, {
-        retryCount: options.retry,
-        retryDelay: options.delay
-      });
-
-      spinner.succeed(`Створення скріншотів завершено`);
-
-      this.logger.info(`Оброблено ${results.length} завдань`);
-
-    } catch (error) {
-      spinner.fail('Помилка створення скріншотів');
-      throw error;
+    if (path.startsWith('/en/')) {
+      return url;
     }
-  }
 
-  async showResults() {
-    const stats = this.screenshotManager.getStats();
-    const errors = this.screenshotManager.getErrors();
-    const successful = this.screenshotManager.getSuccessful();
-
-    this.logger.logStats(stats);
-    this.logger.logErrors(errors);
-
-    const logFile = this.logger.logFile.replace('.log', '-results.json');
-    this.screenshotManager.results.forEach(result => {
-      this.logger.info(`Результат: ${result.siteName}/${result.language}/${result.device}/${result.pageType}`, {
-        success: result.success,
-        url: result.url,
-        fileName: result.fileName,
-        error: result.error,
-        attempts: result.attempts
-      });
-    });
-
-    this.logger.saveLogsToFile(logFile);
-
-    if (errors.length === 0) {
-      this.logger.success(`🎉 Всі ${stats.total} скріншотів створено успішно!`);
+    if (path === '/') {
+      urlObj.pathname = '/en/';
     } else {
-      this.logger.warn(`⚠️ Створено ${stats.successful} з ${stats.total} скріншотів. ${errors.length} помилок.`);
+      urlObj.pathname = '/en' + path;
+    }
+
+    return urlObj.toString();
+  }
+
+  return url;
+}
+
+async function ensureDirectoryExists(dirPath) {
+  if (!fs.existsSync(dirPath)) {
+    fs.mkdirSync(dirPath, { recursive: true });
+  }
+}
+
+async function autoDiscoverUrls(baseUrl) {
+  const browser = await puppeteer.launch({ headless: "new" });
+  const page = await browser.newPage();
+
+  try {
+    await page.setViewport({ width: 1450, height: 1080 });
+    await page.goto(baseUrl, { waitUntil: 'networkidle2', timeout: 0 });
+
+    const autoParser = new AutoParser();
+    const result = await autoParser.findCategoryAndProduct(page, baseUrl);
+
+    if (result) {
+      const urls = [baseUrl];
+      if (result.categoryUrl) urls.push(result.categoryUrl);
+      if (result.productUrl) urls.push(result.productUrl);
+      return urls;
+    }
+
+    return [baseUrl];
+
+  } finally {
+    await browser.close();
+  }
+}
+
+async function processUrls() {
+  const rawUrls = readUrlsFromFile();
+  const processedUrls = [];
+
+  if (rawUrls.length === 1 && rawUrls[0].endsWith('/')) {
+    console.log(`🔍 Авто-визначення для ${rawUrls[0]}...`);
+    const discoveredUrls = await autoDiscoverUrls(rawUrls[0]);
+    processedUrls.push(...discoveredUrls);
+  } else {
+    for (const url of rawUrls) {
+      if (url === 'auto') {
+        const baseUrl = rawUrls.find(u => u !== 'auto' && u.endsWith('/'));
+        if (baseUrl) {
+          console.log(`🔍 Авто-визначення для ${baseUrl}...`);
+          const discoveredUrls = await autoDiscoverUrls(baseUrl);
+          processedUrls.push(...discoveredUrls);
+        } else {
+          console.log('❌ Не знайдено базовий URL для авто-визначення');
+        }
+      } else {
+        processedUrls.push(url);
+      }
+    }
+  }
+
+  return processedUrls;
+}
+
+const urls = await processUrls();
+
+console.log(`📋 Знайдено ${urls.length} URL для обробки:`);
+urls.forEach((url, index) => {
+  console.log(`  ${index + 1}. ${url}`);
+});
+console.log('');
+
+async function takeScreenshots() {
+  let browser;
+  try {
+    browser = await puppeteer.launch({
+      headless: "new"
+    });
+
+    const languages = ['default', 'en'];
+    const devices = ['desktop', 'mobile'];
+    const allPromises = [];
+
+    for (const url of urls) {
+      for (const language of languages) {
+        for (const device of devices) {
+          const promise = createScreenshot(browser, url, language, device);
+          allPromises.push(promise);
+        }
+      }
+    }
+
+    await Promise.all(allPromises);
+
+    console.log(`🎉 Всі ${allPromises.length} скриншоти успішно створені!`);
+
+  } catch (error) {
+    console.error('❌ Помилка:', error);
+  } finally {
+    if (browser) {
+      await browser.close();
     }
   }
 }
 
-const app = new ScreenshooterApp();
-app.run().catch(error => {
-  console.error('❌ Неочікувана помилка:', error);
-  process.exit(1);
-});
+async function createScreenshot(browser, originalUrl, language, device) {
+  const page = await browser.newPage();
+
+  try {
+    if (device === 'mobile') {
+      await page.setViewport({
+        width: 375,
+        height: 667,
+        deviceScaleFactor: 2,
+        isMobile: true
+      });
+      await page.setUserAgent('Mozilla/5.0 (iPhone; CPU iPhone OS 13_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.1.1 Mobile/15E148 Safari/604.1');
+    } else {
+      await page.setViewport({ width: 1450, height: 1080 });
+    }
+
+    const finalUrl = addLanguagePrefix(originalUrl, language);
+
+    await page.goto(finalUrl, { waitUntil: 'networkidle2', timeout: 0 });
+
+    const fileName = generateFileName(originalUrl, device, language, 0);
+    const folderPath = `output/${device}/${language}`;
+    const screenshotPath = `${folderPath}/${fileName}`;
+
+    await ensureDirectoryExists(folderPath);
+
+    await page.screenshot({ path: screenshotPath, fullPage: true });
+
+    console.log(`✅ ${device.toUpperCase()} ${language.toUpperCase()}: ${finalUrl} -> ${folderPath}/${fileName}`);
+
+  } catch (error) {
+    console.error(`❌ Помилка для ${device} ${language} ${originalUrl}:`, error.message);
+  } finally {
+    await page.close();
+  }
+}
+
+takeScreenshots();
