@@ -17,6 +17,45 @@ export class UrlReader {
     }
   }
 
+  groupUrlsByDomain(urls) {
+    const domainGroups = {};
+
+    for (const url of urls) {
+      if (url === 'auto') continue;
+
+      try {
+        const domain = new URL(url).hostname;
+        if (!domainGroups[domain]) {
+          domainGroups[domain] = [];
+        }
+        domainGroups[domain].push(url);
+      } catch (error) {
+        console.warn(`⚠️ Невірний URL: ${url}`);
+      }
+    }
+
+    return domainGroups;
+  }
+
+  getDomainsForAutoDiscovery(domainGroups) {
+    const domainsForAuto = [];
+
+    for (const [domain, urls] of Object.entries(domainGroups)) {
+      const rootUrls = urls.filter(url => url.endsWith('/'));
+
+      // Если у домена только одна корневая страница - делаем авто-определение
+      if (rootUrls.length === 1) {
+        domainsForAuto.push({
+          domain,
+          baseUrl: rootUrls[0],
+          allUrls: urls
+        });
+      }
+    }
+
+    return domainsForAuto;
+  }
+
   hasOnlyRootUrl(urls) {
     return urls.length === 1 && urls[0].endsWith('/');
   }

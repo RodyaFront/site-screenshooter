@@ -16,24 +16,20 @@ class ScreenshotApp {
     const rawUrls = this.urlReader.readUrls();
     const processedUrls = [];
 
-    if (this.urlReader.hasOnlyRootUrl(rawUrls)) {
-      Logger.search(`Авто-визначення для ${rawUrls[0]}...`);
-      const discoveredUrls = await this.autoDiscoverer.discoverUrls(rawUrls[0]);
-      processedUrls.push(...discoveredUrls);
-    } else {
-      for (const url of rawUrls) {
-        if (url === 'auto') {
-          const baseUrl = this.urlReader.findBaseUrlForAuto(rawUrls);
-          if (baseUrl) {
-            Logger.search(`Авто-визначення для ${baseUrl}...`);
-            const discoveredUrls = await this.autoDiscoverer.discoverUrls(baseUrl);
-            processedUrls.push(...discoveredUrls);
-          } else {
-            Logger.error('Не знайдено базовий URL для авто-визначення');
-          }
-        } else {
-          processedUrls.push(url);
-        }
+    const domainGroups = this.urlReader.groupUrlsByDomain(rawUrls);
+
+    const domainsForAuto = this.urlReader.getDomainsForAutoDiscovery(domainGroups);
+
+    for (const [domain, urls] of Object.entries(domainGroups)) {
+      const domainInfo = domainsForAuto.find(d => d.domain === domain);
+
+      if (domainInfo) {
+        Logger.search(`Авто-визначення для домена ${domain} (${domainInfo.baseUrl})...`);
+        const discoveredUrls = await this.autoDiscoverer.discoverUrls(domainInfo.baseUrl);
+        processedUrls.push(...discoveredUrls);
+      } else {
+        Logger.info(`Обробка домена ${domain} без авто-визначення...`);
+        processedUrls.push(...urls);
       }
     }
 

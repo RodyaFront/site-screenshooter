@@ -46,16 +46,28 @@ export class ScreenshotManager {
       await page.goto(finalUrl, { waitUntil: 'networkidle2', timeout: 0 });
 
       const fileName = strategy.generateFileName(originalUrl);
-      const folderPath = `output/${device}/${language}`;
+      const siteFolder = this.getSiteFolderName(originalUrl);
+      const folderPath = `output/${siteFolder}/${device}/${language}`;
       const screenshotPath = `${folderPath}/${fileName}`;
 
       await this.ensureDirectoryExists(folderPath);
       await page.screenshot({ path: screenshotPath, fullPage: true });
 
+      console.log(`✅ ${device.toUpperCase()} ${language.toUpperCase()}: ${finalUrl} -> ${folderPath}/${fileName}`);
+
     } catch (error) {
       console.error(`❌ Помилка для ${device} ${language} ${originalUrl}:`, error.message);
     } finally {
       await page.close();
+    }
+  }
+
+  getSiteFolderName(url) {
+    try {
+      const urlObj = new URL(url);
+      return urlObj.hostname.replace(/[^a-zA-Z0-9.-]/g, '_');
+    } catch (error) {
+      return 'unknown_site';
     }
   }
 
