@@ -1,9 +1,13 @@
 import puppeteer from 'puppeteer';
-import { AutoParser } from './auto-parser.js';
+import { HoroshopDiscoveryStrategy } from './discovery-strategies/horoshop-discovery-strategy.js';
+import { GenericDiscoveryStrategy } from './discovery-strategies/generic-discovery-strategy.js';
 
 export class AutoDiscoverer {
   constructor() {
-    this.autoParser = new AutoParser();
+    this.strategies = [
+      new HoroshopDiscoveryStrategy(),
+      new GenericDiscoveryStrategy()
+    ];
   }
 
   async discoverUrls(baseUrl) {
@@ -14,19 +18,27 @@ export class AutoDiscoverer {
       await page.setViewport({ width: 1450, height: 1080 });
       await page.goto(baseUrl, { waitUntil: 'networkidle2', timeout: 0 });
 
-      const result = await this.autoParser.findCategoryAndProduct(page, baseUrl);
-
-      if (result) {
-        const urls = [baseUrl];
-        if (result.categoryUrl) urls.push(result.categoryUrl);
-        if (result.productUrl) urls.push(result.productUrl);
-        return urls;
-      }
-
-      return [baseUrl];
+      // Находим подходящую стратегию
+      const strategy = this.findBestStrategy(baseUrl);
+      return await strategy.discoverUrls(baseUrl, page);
 
     } finally {
       await browser.close();
     }
+  }
+
+  findBestStrategy(baseUrl) {
+    // Сортируем стратегии по приоритету (от высокого к низкому)
+    const sortedStrategies = this.strategies.sort((a, b) => b.getPriority() - a.getPriority());
+
+    // Находим первую подходящую стратегию
+    for (const strategy of sortedStrategies) {
+      if (strategy.canHandle(baseUrl)) {
+        return strategy;
+      }
+    }
+
+    // Fallback на generic стратегию
+    return this.strategies.find(s => s.name === 'generic');
   }
 }
