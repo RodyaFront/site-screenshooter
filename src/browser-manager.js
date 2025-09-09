@@ -7,7 +7,7 @@ export class BrowserManager {
 
   async launch() {
     this.browser = await puppeteer.launch({
-      headless: "new"
+      headless: true
     });
     return this.browser;
   }
